@@ -24,4 +24,4 @@ Safety First: Creates a new file with the -doubled- suffix, keeping your source 
 
 Portable: Standalone .exe version available (no Python installation needed).
 
-📸 Screenshot
+![ME7 5120 Hack Log Patche](screenshot.png)
