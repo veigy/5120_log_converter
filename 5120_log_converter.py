@@ -3,18 +3,18 @@ from tkinter import filedialog, messagebox, ttk
 import os
 import locale
 import ctypes
-import sys # Přidej sys k importům na začátek
+import sys
 
+# --- FUNKCE PRO CESTY K SOUBORŮM V EXE ---
 def resource_path(relative_path):
     """ Získá cestu k souboru, funguje pro vývoj i pro PyInstaller .exe """
     try:
-        # PyInstaller vytvoří proměnnou _MEIPASS při rozbalování do Tempu
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-# --- Překlady ---
+# --- PŘEKLADY ---
 TRANSLATIONS = {
     'cs': {
         'title': 'ME7 Logger Patcher (5120 Hack)',
@@ -32,7 +32,8 @@ TRANSLATIONS = {
         'ps_w': '{ModelledIntakeManifoldPressure}',
         'pssol_w': '{DesiredIntakeManifoldPressure}',
         'pu_w': '{BaroPressure}',
-        'pvdkds_w': '{BoostPressureActual}'
+        'pvdkds_w': '{BoostPressureActual}',
+        'custom_label': 'Vlastní kanál (volitelné):'
     },
     'en': {
         'title': 'ME7 Logger Patcher (5120 Hack)',
@@ -50,13 +51,22 @@ TRANSLATIONS = {
         'ps_w': '{ModelledIntakeManifoldPressure}',
         'pssol_w': '{DesiredIntakeManifoldPressure}',
         'pu_w': '{BaroPressure}',
-        'pvdkds_w': '{BoostPressureActual}'
+        'pvdkds_w': '{BoostPressureActual}',
+        'custom_label': 'Custom channel (optional):'
     }
 }
 
+# --- LOGIKA VÝPOČTU ---
 def process_me7_log():
     lang = current_lang.get()
+    
+    # 1. Standardní vybrané kanály
     selected_vars = [var for var, state in checkboxes.items() if state.get()]
+    
+    # 2. Přidání vlastního kanálu
+    custom_v = custom_var_entry.get().strip()
+    if custom_v:
+        selected_vars.append(custom_v)
     
     if not selected_vars:
         messagebox.showwarning("!", TRANSLATIONS[lang]['no_selection'])
@@ -76,6 +86,7 @@ def process_me7_log():
         header_index = -1
         col_indices = {}
 
+        # Vyhledání indexů sloupců
         for i, line in enumerate(lines):
             if 'TimeStamp' in line:
                 header_index = i
@@ -89,6 +100,7 @@ def process_me7_log():
             messagebox.showwarning("!", TRANSLATIONS[lang]['no_vars_found'])
             return
 
+        # Zpracování dat (data začínají obvykle 3 řádky pod hlavičkou v ME7 logu)
         data_start_index = header_index + 3
         for i, line in enumerate(lines):
             if i >= data_start_index and line.strip():
@@ -106,6 +118,7 @@ def process_me7_log():
             else:
                 output_lines.append(line)
 
+        # Uložení souboru
         folder = os.path.dirname(input_path)
         filename = os.path.basename(input_path)
         name, ext = os.path.splitext(filename)
@@ -121,6 +134,7 @@ def process_me7_log():
         status_label.config(text="❌ Error", fg="#dc3545")
         messagebox.showerror("Error", f"{TRANSLATIONS[lang]['error']} {e}")
 
+# --- PŘEPÍNÁNÍ JAZYKA ---
 def change_language(*args):
     lang = current_lang.get()
     root.title(TRANSLATIONS[lang]['title'])
@@ -130,43 +144,37 @@ def change_language(*args):
     btn.config(text=TRANSLATIONS[lang]['btn_start'])
     status_label.config(text=TRANSLATIONS[lang]['ready'])
     lang_info_label.config(text=TRANSLATIONS[lang]['lang_label'])
+    custom_label.config(text=TRANSLATIONS[lang]['custom_label'])
     
-    # Opravená aktualizace textů u checkboxů přes slovník objektů
     for var, cb_obj in checkbox_widgets.items():
         display_text = f"{var.ljust(10)} | {TRANSLATIONS[lang][var]}"
         cb_obj.config(text=display_text)
 
-# --- GUI Setup ---
+# --- GUI SETUP ---
 root = tk.Tk()
-# --- NASTAVENÍ IKONY ---
+root.geometry("580x620")
+root.configure(padx=25, pady=20)
+
+# Ikona a Taskbar fix
 icon_name = "favicon.ico"
 icon_path = resource_path(icon_name)
-# Cesta k souboru (předpokládá, že je ve stejné složce jako skript)
-icon_path = os.path.join(os.path.dirname(__file__), icon_name)
-
 if os.path.exists(icon_path):
     try:
         root.iconbitmap(icon_path)
-        # Fix pro lištu ve Windows
         myappid = 'alesv.tuning.me7patcher.1.0'
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except:
         pass
-# -----------------------
 
-root.geometry("580x600")
-root.configure(padx=25, pady=20)
-
-# Oprava DeprecationWarning: Moderní detekce jazyka
+# Detekce jazyka
 try:
-    sys_lang = locale.getlocale()[0] # Zkusí získat nastavený jazyk
+    sys_lang = locale.getlocale()[0]
 except:
     sys_lang = None
-
 default_lang = 'cs' if sys_lang and ('cs' in sys_lang.lower() or 'czech' in sys_lang.lower()) else 'en'
 current_lang = tk.StringVar(value=default_lang)
 
-# Výběr jazyka
+# Horní lišta s jazykem
 lang_frame = tk.Frame(root)
 lang_frame.pack(anchor="ne")
 lang_info_label = tk.Label(lang_frame, text="", font=("Arial", 8))
@@ -175,24 +183,36 @@ lang_combo = ttk.Combobox(lang_frame, textvariable=current_lang, values=['cs', '
 lang_combo.pack(side="left", padx=5)
 current_lang.trace_add("write", change_language)
 
+# Nadpisy
 heading_label = tk.Label(root, text="", font=("Arial", 14, "bold"), fg="#d9534f")
 heading_label.pack(pady=(10, 5))
 subheading_label = tk.Label(root, text="", font=("Arial", 10, "italic"))
 subheading_label.pack(pady=(0, 15))
 
+# Sekce s checkboxy
 checkbox_frame = tk.LabelFrame(root, text="", padx=15, pady=15)
 checkbox_frame.pack(fill="x", pady=10)
 
-checkboxes = {}       # Tady držíme True/False hodnoty
-checkbox_widgets = {} # Tady držíme samotné Checkbutton objekty pro změnu textu
+checkboxes = {}
+checkbox_widgets = {}
+TARGET_CHANNELS = ['plsol_w', 'ps_w', 'pssol_w', 'pu_w', 'pvdkds_w']
 
-for var in ['plsol_w', 'ps_w', 'pssol_w', 'pu_w', 'pvdkds_w']:
+for var in TARGET_CHANNELS:
     var_state = tk.BooleanVar(value=True)
     cb = tk.Checkbutton(checkbox_frame, text="", variable=var_state, anchor="w", font=("Courier", 9))
     cb.pack(fill="x")
     checkboxes[var] = var_state
-    checkbox_widgets[var] = cb # Uložíme si referenci na widget
+    checkbox_widgets[var] = cb
 
+# Vlastní kanál
+custom_frame = tk.Frame(root)
+custom_frame.pack(fill="x", pady=5)
+custom_label = tk.Label(custom_frame, text="", font=("Arial", 9))
+custom_label.pack(side="left")
+custom_var_entry = tk.Entry(custom_frame, font=("Courier", 10), width=15)
+custom_var_entry.pack(side="left", padx=10)
+
+# Hlavní tlačítko
 btn = tk.Button(root, text="", command=process_me7_log, 
                bg="#d9534f", fg="white", font=("Arial", 10, "bold"), 
                padx=20, pady=12, cursor="hand2")
@@ -201,16 +221,14 @@ btn.pack(pady=20)
 status_label = tk.Label(root, text="", font=("Arial", 9, "italic"))
 status_label.pack()
 
-# --- Sekce Credits (přidáno dolů) ---
+# Kredity
 about_frame = tk.Frame(root)
 about_frame.pack(side="bottom", pady=(20, 0))
-
 tk.Label(about_frame, text="Powered by Gemini AI (Google)", font=("Arial", 10), fg="#5dade2").pack()
 tk.Label(about_frame, text="Created by Aleš Veigend", font=("Arial", 11, "bold")).pack()
 tk.Label(about_frame, text="AlesVeigend@hotmail.cz", font=("Arial", 10)).pack()
 tk.Label(about_frame, text="Version 1.0 | 2026", font=("Arial", 10), fg="gray").pack()
 
-# Inicializace textů při startu
-change_language() # Nezapomeň volat na konci
-
+# Inicializace
+change_language()
 root.mainloop()
