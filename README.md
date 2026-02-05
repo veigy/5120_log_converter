@@ -1,7 +1,7 @@
 ME7 Logger Patcher (5120 Hack) 🚗💨
 A simple and effective tool for the VAG tuning community.
 
-This application automates the process of doubling pressure values in ME7 logs, specifically designed for ECUs using the 5120 hack (where the 1.5 bar / 512 mbar limit is bypassed by halving the values in the file).
+This application automates the process of doubling pressure values in ME7 logs, specifically designed for ECUs using the 5120 hack (where the 1.5 bar limit is bypassed by halving the values in the file).
 
 🛠 What it does
 When logging a "5120-hacked" ECU, the values for boost and manifold pressure are typically displayed as half of their real-world values. This tool patches your .csv logs by:
